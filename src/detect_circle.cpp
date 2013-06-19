@@ -7,20 +7,6 @@
 using namespace cv;
 
 /**
-* Helper function to find a cosine of angle between vectors
-* from pt0->pt1 and pt0->pt2
-*/
-static double angle( Point pt1, Point pt2, Point pt0 )
-{
-  double dx1 = pt1.x - pt0.x;
-  double dy1 = pt1.y - pt0.y;
-  double dx2 = pt2.x - pt0.x;
-  double dy2 = pt2.y - pt0.y;
-
-  return ( dx1*dx2 + dy1*dy2 ) / sqrt( ( dx1*dx1 + dy1*dy1 )*( dx2*dx2 + dy2*dy2 ) + 1e-10 );
-}
-
-/**
 * Helper function to display text in the center of a contour
 */
 void setLabel(Mat& im, const std::string label, std::vector<Point>& contour)
@@ -73,18 +59,23 @@ int main(int argc, char *argv[])
 
     // Detect and label circles
     double area = contourArea( contours[i] );
+    Point2f center( contours[i].size() );
 
     Rect r      = boundingRect( contours[i] );
     int radius  = r.width / 2;
 
     if ( std::abs( 1 - ( (double)r.width / r.height ) ) <= 0.2 && std::abs( 1 - ( area / ( CV_PI * std::pow( radius, 2.0 ) ) ) ) <= 0.2 && ( r.width <= 30 ) )
     {
+      printf("x : %f\n", center.x);
+      printf("y : %f\n", center.y);
+      printf("radius: %d\n", radius );
+      line(img_dest, Point(center.x, center.y),  Point(center.x, center.y), Scalar( 0, 255, 0 ),  8, 1);
       setLabel( img_dest, "CIR", contours[i] );
     }
   }
 
-  imshow( "bin", img_bin );
-  imshow( "dst", img_dest );
+  // imshow( "bin", img_bin );
+  // imshow( "dst", img_dest );
 
   waitKey(0);
 
