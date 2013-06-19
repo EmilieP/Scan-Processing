@@ -9,8 +9,8 @@ using namespace std;
 
 Mat src, src_gray;
 
-int threshold     = 100;
-int max_threshold = 255;
+int thresh      = 100;
+int max_thresh  = 255;
 RNG rng(12345);
 
 /// Function header
@@ -18,7 +18,7 @@ void threshold_callback( int, void* );
 void canny_callback( int, void* );
 
 /** @function main */
-int main( int argc, char** argv )
+int main( int argc, char *argv[] )
 {
   /// Load source image and convert it to gray
   src = imread( argv[1], 1 );
@@ -32,7 +32,7 @@ int main( int argc, char** argv )
   namedWindow( source_window, CV_WINDOW_AUTOSIZE );
   imshow( source_window, src );
 
-  createTrackbar( " Threshold:", "Source", &threshold, max_threshold, hreshold_callback );
+  createTrackbar( " Threshold:", "Source", &thresh, max_thresh, threshold_callback );
 
   threshold_callback( 0, 0 );
 
@@ -49,7 +49,7 @@ void threshold_callback( int, void* )
   vector<Vec4i> hierarchy;
 
   /// Detect edges using Threshold
-  threshold( src_gray, threshold_output, threshold, 255, THRESH_BINARY );
+  threshold( src_gray, threshold_output, thresh, 255, THRESH_BINARY );
   /// Find contours
   findContours( threshold_output, contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, Point(0, 0) );
 

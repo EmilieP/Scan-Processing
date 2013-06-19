@@ -2,7 +2,7 @@ Scan Processing
 ===============
 
 
-## Traitement d'image de scans OpenCV
+## Traitement d'image de scans avec OpenCV
 
 Instruction de compilation :
 
