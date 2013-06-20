@@ -5,30 +5,6 @@
 
 using namespace cv;
 
-
-Point getCenterCoordinate( vector<Vec3f> circles )
-{
-  Point center;
-  if( circles.size() <= 0 )
-  {
-    center.x = 0;
-    center.y = 0;
-  }
-  else
-  {
-    for( size_t i = 0; i < circles.size(); i++ )
-    {
-      int radius = cvRound(circles[i][2]);
-
-      if( radius >= 10 && radius <= 30 )
-        center.x = cvRound(circles[i][0]);
-        center.y = cvRound(circles[i][1]);
-        break;
-    }
-  }
-  return center;
-}
-
 Mat applyFilters( Mat& img)
 {
   Mat var_img;
@@ -46,7 +22,29 @@ vector<Vec3f> getCircles( Mat& img )
   return circles;
 }
 
+Point getCenterCoordinate( vector<Vec3f> circles )
+{
+  Point center;
+  if( circles.size() <= 0 )
+  {
+    center.x = 0;
+    center.y = 0;
+  }
+  else
+  {
+    for( size_t i = 0; i < circles.size(); i++ )
+    {
+      int radius = cvRound(circles[i][2]);
 
+      if( radius >= 10 && radius <= 30 ) {
+        center.x = cvRound(circles[i][0]);
+        center.y = cvRound(circles[i][1]);
+        break;
+      }
+    }
+  }
+  return center;
+}
 
 void detectRightCircle( Mat& img )
 {
@@ -58,10 +56,12 @@ void detectRightCircle( Mat& img )
   Point center = getCenterCoordinate( circles );
   center.x +=  width - 150;
 
+  printf("== Cercle de droite ==\n");
+  printf("x : %i\n", center.x );
+  printf("y : %i\n", center.y );
+
   circle( img, center, 1, Scalar(0,0,255), -1, 8, 0 );
 }
-
-
 
 void detectLeftCircle( Mat& img )
 {
@@ -71,14 +71,13 @@ void detectLeftCircle( Mat& img )
   vector<Vec3f> circles = getCircles( gray );
   Point center = getCenterCoordinate( circles );
 
-  printf("1 cercle de coordonnées LEFT:\n");
-  printf("    x : %d\n", center.x );
-  printf("    y : %d\n", center.y );
+  printf("== Cercle de gauche ==\n");
+  printf("x : %i\n", center.x );
+  printf("y : %i\n", center.y );
+
   circle( img, center, 1, Scalar(0,255,0), -1, 8, 0 );
 }
 
-
-/** @function main */
 int main(int argc, char** argv)
 {
   Mat src = imread( argv[1], 1 );
