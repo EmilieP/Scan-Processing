@@ -9,5 +9,5 @@ Instruction de compilation :
 ```bash
   cmake .
   make [mon-exe]
-  ./bin/mon-exe Images/mon-image.jpg
+  ./bin/mon-exe [argv]
 ```

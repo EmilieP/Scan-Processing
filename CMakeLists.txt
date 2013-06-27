@@ -4,12 +4,61 @@ PROJECT( Scan-Processing )
 
 FIND_PACKAGE( OpenCV REQUIRED )
 
+# - Find mysqlclient
+# Find the native MySQL includes and library
+#
+#  MYSQL_INCLUDE_DIR - where to find mysql.h, etc.
+#  MYSQL_LIBRARIES   - List of libraries when using MySQL.
+#  MYSQL_FOUND       - True if MySQL found.
+
+IF (MYSQL_INCLUDE_DIR)
+  # Already in cache, be silent
+  SET(MYSQL_FIND_QUIETLY TRUE)
+ENDIF (MYSQL_INCLUDE_DIR)
+
+FIND_PATH(MYSQL_INCLUDE_DIR mysql.h
+  /usr/local/include/mysql
+  /usr/include/mysql
+)
+
+SET(MYSQL_NAMES mysqlclient mysqlclient_r)
+FIND_LIBRARY(MYSQL_LIBRARY
+  NAMES ${MYSQL_NAMES}
+  PATHS /usr/lib /usr/local/lib
+  PATH_SUFFIXES mysql
+)
+
+IF (MYSQL_INCLUDE_DIR AND MYSQL_LIBRARY)
+  SET(MYSQL_FOUND TRUE)
+  SET( MYSQL_LIBRARIES ${MYSQL_LIBRARY} )
+ELSE (MYSQL_INCLUDE_DIR AND MYSQL_LIBRARY)
+  SET(MYSQL_FOUND FALSE)
+  SET( MYSQL_LIBRARIES )
+ENDIF (MYSQL_INCLUDE_DIR AND MYSQL_LIBRARY)
+
+IF (MYSQL_FOUND)
+  IF (NOT MYSQL_FIND_QUIETLY)
+    MESSAGE(STATUS "Found MySQL: ${MYSQL_LIBRARY}")
+  ENDIF (NOT MYSQL_FIND_QUIETLY)
+ELSE (MYSQL_FOUND)
+  IF (MYSQL_FIND_REQUIRED)
+    MESSAGE(STATUS "Looked for MySQL libraries named ${MYSQL_NAMES}.")
+    MESSAGE(FATAL_ERROR "Could NOT find MySQL library")
+  ENDIF (MYSQL_FIND_REQUIRED)
+ENDIF (MYSQL_FOUND)
+
+MARK_AS_ADVANCED(
+  MYSQL_LIBRARY
+  MYSQL_INCLUDE_DIR
+)
+
+
 SET(EXECUTABLE_OUTPUT_PATH bin/${CMAKE_BUILD_TYPE})
 
-file( GLOB SOURCES src/*.cpp )
+FILE( GLOB SOURCES src/*.cpp )
 
-foreach( src_file ${SOURCES} )
-  get_filename_component( filename ${src_file} NAME_WE )
-  add_executable( ${filename} ${src_file} )
-  target_link_libraries( ${filename} ${OpenCV_LIBS} )
-endforeach( src_file ${SOURCES} )
+FOREACH( src_file ${SOURCES} )
+  GET_FILENAME_COMPONENT( filename ${src_file} NAME_WE )
+  ADD_EXECUTABLE( ${filename} ${src_file} )
+  TARGET_LINK_LIBRARIES( ${filename} ${OpenCV_LIBS} ${MYSQL_LIBRARIES})
+ENDFOREACH( src_file ${SOURCES} )

@@ -4,14 +4,30 @@
 #include <iostream>
 #include <stdio.h>
 #include <stdlib.h>
-
 #include <string>
 #include <sys/stat.h>
+#include <time.h>
+#include <fstream>
+#include <mysql.h>
 
 using namespace cv;
+using namespace std;
 
-const std::string extensions[] = { "jpg", "png", "jpeg" };
-const int extensions_size = sizeof(extensions)/sizeof(std::string);
+const int ITERATOR = 1;
+// FILES
+const string EXTS[]  = { "jpg", "png", "jpeg" };
+const int EXT_SIZE   = sizeof(EXTS)/sizeof(string);
+const char* TXT_NAME = "coordonnees.txt";
+// CIRCLES
+const int MAX_RADIUS = 30;
+const int MIN_RADIUS = 10;
+// BDD
+const char* HOSTNAME = "localhost";
+const char* USER     = "root";
+const char* PASSWORD = "";
+const char* TABLE    = "hough_circles";
+
+ofstream text;
 
 Mat applyFilters( Mat& img)
 {
@@ -30,120 +46,151 @@ vector<Vec3f> getCircles( Mat& img )
   return circles;
 }
 
-Point getCenterCoordinate( vector<Vec3f> circles )
+Point getCenterCoordinates( vector<Vec3f> circles )
 {
-  Point center;
-  if( circles.size() <= 0 )
+  for( size_t i = 0; i < circles.size(); i++ )
   {
-    center.x = 0;
-    center.y = 0;
+    int radius = cvRound( circles[i][2] );
+    if( radius >= MIN_RADIUS && radius <= MAX_RADIUS )
+      return Point( cvRound( circles[i][0] ), cvRound( circles[i][1] ) );
   }
-  else
-  {
-    for( size_t i = 0; i < circles.size(); i++ )
-    {
-      int radius = cvRound( circles[i][2] );
-
-      if( radius >= 10 && radius <= 30 ) {
-        center.x = cvRound( circles[i][0] );
-        center.y = cvRound( circles[i][1] );
-        break;
-      }
-    }
-  }
-  return center;
+  return Point(0, 0);
 }
 
-void detect_right_circle( Mat& img )
+Point rightCircle( Mat& img )
 {
   int width = img.cols;
   Rect roi( width - 150 , 0 , 150, 150 );
   Mat sub_img = img( roi );
   Mat gray    = applyFilters( sub_img );
   vector<Vec3f> circles = getCircles( gray );
-  Point center = getCenterCoordinate( circles );
+  if( circles.size() <= 0 )
+    return Point(0, 0);
+  Point center = getCenterCoordinates( circles );
   center.x += width - 150;
-
-  std::cout << " droite : " << "[ " << center.x << ", "<< center.y << " ]" << std::endl;
-
-  circle( img, center, 1, Scalar(0,0,255), -1, 8, 0 );
+  return Point( center.x, center.y );
 }
 
-void detect_left_circle( Mat img )
+Point leftCircle( Mat& img )
 {
   Rect roi( 0 , 0 , 150, 150 );
 
   Mat sub_img = img( roi );
   Mat gray = applyFilters( sub_img );
   vector<Vec3f> circles = getCircles( gray );
-  Point center = getCenterCoordinate( circles );
-
-  std::cout << " gauche : " << "[ " << center.x << ", "<< center.y << " ]" << std::endl;
-
-  circle( img, center, 1, Scalar(0,255,0), -1, 8, 0 );
+  if( circles.size() <= 0 )
+    return Point(0, 0);
+  Point center = getCenterCoordinates( circles );
+  return Point( center.x, center.y );
 }
 
-bool is_graphic_file( std::string filename ) {
-  for( int i = 0; i < extensions_size; i++)
+bool isGraphicFile( string filename )
+{
+  for( int i = 0; i < EXT_SIZE; i++ )
   {
-    std::size_t found = filename.find(extensions[i]);
-    if (found != std::string::npos)
+    size_t found = filename.find(EXTS[i]);
+    if( found != string::npos )
       return 1;
   }
   return 0;
 }
 
-bool is_dir(const char* path) {
+bool isDir(const char* path)
+{
   struct stat buf;
   stat(path, &buf);
   return S_ISDIR(buf.st_mode);
 }
 
-std::string full_path( std::string dir, std::string filename )
+string fullPath( string dir, string filename )
 {
   return dir + filename;
 }
 
-void detect_circles_from_image( Mat img ){
-  detect_left_circle( img );
-  detect_right_circle( img );
+bool pointIsNull( Point p )
+{
+  return( ( p.x == 0 ) && ( p.y == 0 ) );
+}
+
+void detectCirclesFromImage( Mat& img )
+{
+  Point left  = leftCircle( img );
+  Point right = rightCircle( img );
+
+  if( pointIsNull( left ) || pointIsNull( right ) )
+    text << "\n";
+  else
+    text << "[ " << left.x << " , " << left.y << " ] / " << "[ " << right.x << " , " << right.y << " ]\n";
+}
+
+void finishWithError(MYSQL *con)
+{
+  fprintf(stderr, "%s\n", mysql_error(con));
+  mysql_close(con);
+  exit(1);
 }
 
 int main(int argc, char** argv)
 {
+  clock_t tic = clock();
+
+  MYSQL *con = mysql_init(NULL);
+
+  if (con == NULL)
+  {
+      fprintf(stderr, "%s\n", mysql_error(con));
+      exit(1);
+  }
+
+  if ( mysql_real_connect( con, HOSTNAME, USER, PASSWORD, TABLE, 0, NULL, 0 ) == NULL )
+    finishWithError(con);
+
+  if ( mysql_query(con, "DROP TABLE IF EXISTS Circles") )
+    finishWithError(con);
+
+  if ( mysql_query(con, "CREATE TABLE Circles(id INT, filename CHAR, left_x INT, left_y INT, right_x INT, right_y INT)") )
+      finishWithError(con);
+
+  // char buffer [50];
+  // n = sprintf (buffer, "SELECT * FROM %s WHERE filename like %%%s%%", TABLE, filename);
+  // printf ("[%s] is a string %d chars long\n",buffer,n);
+
+  mysql_close(con);
+
   DIR *dir;
   struct dirent *file;
 
-  if ( is_dir( argv[1] ) )
+  if ( isDir( argv[1] ) )
   {
-    std::cout << argv[1] << " is a directory" << std::endl;
-
     dir = opendir( argv[1] );
 
-    if( dir != NULL ) {
-      std::string folder = argv[1];
-      while( ( file = readdir( dir ) ) )
+    if( dir == NULL )
+      return 0;
+    string folder = argv[1];
+    text.open (TXT_NAME);
+    while(( file = readdir( dir )) )
+    {
+      for( int j = 0; j < ITERATOR; j++ )
       {
-        std::string filename = file->d_name;
-        if( is_graphic_file( filename ) )
-        {
-          std::string img_full_path = full_path( folder, filename );
-          Mat img = imread( img_full_path, 1 ) ;
-          std::cout << " == " << filename << " == " << std::endl;
-          detect_circles_from_image( img );
-        }
+        string filename = file->d_name;
+        if( !isGraphicFile( filename ) )
+          continue;
+        string img_full_path = fullPath( folder, filename );
+        Mat img = imread( img_full_path, 1 ) ;
+        text << " == " << filename << " ==\n";
+        detectCirclesFromImage( img );
       }
     }
   }
   else
   {
-    std::cout << argv[1] << " is a file" << std::endl;
-    if( is_graphic_file( argv[1] ) )
+    if( isGraphicFile( argv[1] ) )
     {
       Mat img = imread( argv[1], 1 );
-      detect_circles_from_image( img );
+      detectCirclesFromImage( img );
     }
   }
-
+  clock_t toc = clock();
+  printf("Elapsed: %f seconds\n", (double)(toc - tic) / CLOCKS_PER_SEC);
   return 0;
 }
