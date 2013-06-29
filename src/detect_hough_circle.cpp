@@ -8,7 +8,7 @@
 #include <sys/stat.h>
 #include <time.h>
 #include <fstream>
-#include <mysql.h>
+// #include <mysql.h>
 
 using namespace cv;
 using namespace std;
@@ -33,7 +33,7 @@ Mat applyFilters( Mat& img)
 {
   Mat var_img;
   cvtColor( img, var_img, CV_BGR2GRAY );
-  Canny( var_img, var_img, 5, 70, 3);
+  Canny( var_img, var_img, 50, 150, 3);
   GaussianBlur( var_img, var_img, Size(9, 9), 2, 2 );
 
   return var_img;
@@ -120,46 +120,47 @@ void detectCirclesFromImage( Mat& img )
   if( pointIsNull( left ) || pointIsNull( right ) )
     text << "\n";
   else
-    text << "[ " << left.x << " , " << left.y << " ] / " << "[ " << right.x << " , " << right.y << " ]\n";
+    text << "|" << left.x << "|" << left.y << "|" << right.x << "|" << right.y << "\n";
 }
 
-void finishWithError(MYSQL *con)
-{
-  fprintf(stderr, "%s\n", mysql_error(con));
-  mysql_close(con);
-  exit(1);
-}
+// void finishWithError(MYSQL *con)
+// {
+//   fprintf(stderr, "%s\n", mysql_error(con));
+//   mysql_close(con);
+//   exit(1);
+// }
 
 int main(int argc, char** argv)
 {
   clock_t tic = clock();
 
-  MYSQL *con = mysql_init(NULL);
+  // MYSQL *con = mysql_init(NULL);
 
-  if (con == NULL)
-  {
-      fprintf(stderr, "%s\n", mysql_error(con));
-      exit(1);
-  }
+  // if (con == NULL)
+  // {
+  //     fprintf(stderr, "%s\n", mysql_error(con));
+  //     exit(1);
+  // }
 
-  if ( mysql_real_connect( con, HOSTNAME, USER, PASSWORD, TABLE, 0, NULL, 0 ) == NULL )
-    finishWithError(con);
+  // if ( mysql_real_connect( con, HOSTNAME, USER, PASSWORD, TABLE, 0, NULL, 0 ) == NULL )
+  //   finishWithError(con);
 
-  if ( mysql_query(con, "DROP TABLE IF EXISTS Circles") )
-    finishWithError(con);
+  // if ( mysql_query(con, "DROP TABLE IF EXISTS Circles") )
+  //   finishWithError(con);
 
-  if ( mysql_query(con, "CREATE TABLE Circles(id INT, filename CHAR, left_x INT, left_y INT, right_x INT, right_y INT)") )
-      finishWithError(con);
+  // if ( mysql_query(con, "CREATE TABLE Circles(id INT, filename CHAR, left_x INT, left_y INT, right_x INT, right_y INT)") )
+  //     finishWithError(con);
 
   // char buffer [50];
   // n = sprintf (buffer, "SELECT * FROM %s WHERE filename like %%%s%%", TABLE, filename);
   // printf ("[%s] is a string %d chars long\n",buffer,n);
 
-  mysql_close(con);
+  // mysql_close(con);
 
   DIR *dir;
   struct dirent *file;
-
+  text.open (TXT_NAME);
+  
   if ( isDir( argv[1] ) )
   {
     dir = opendir( argv[1] );
@@ -167,7 +168,7 @@ int main(int argc, char** argv)
     if( dir == NULL )
       return 0;
     string folder = argv[1];
-    text.open (TXT_NAME);
+    
     while(( file = readdir( dir )) )
     {
       for( int j = 0; j < ITERATOR; j++ )
@@ -177,7 +178,7 @@ int main(int argc, char** argv)
           continue;
         string img_full_path = fullPath( folder, filename );
         Mat img = imread( img_full_path, 1 ) ;
-        text << " == " << filename << " ==\n";
+        text << filename;
         detectCirclesFromImage( img );
       }
     }
@@ -187,9 +188,11 @@ int main(int argc, char** argv)
     if( isGraphicFile( argv[1] ) )
     {
       Mat img = imread( argv[1], 1 );
+      text << argv[1];
       detectCirclesFromImage( img );
     }
   }
+  
   clock_t toc = clock();
   printf("Elapsed: %f seconds\n", (double)(toc - tic) / CLOCKS_PER_SEC);
   return 0;
