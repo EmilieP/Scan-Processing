@@ -8,40 +8,81 @@
 using namespace cv;
 using namespace std;
 
-Mat source, source_gray;
+Mat source, source_gray, debug_image;
 int width, height;
+vector<Rect> rectangles;
+bool debug_mode = false;
 
-void ensureArgumentsPresence(int);
-void assignSource(string);
-void assignDimensions(const char*, const char*);
+Mat createBinaryImage(Mat, Mat);
 Mat keepLines(string);
-void setLabel(Mat&, const std::string, std::vector<Point>&);
 string intToString(int);
+vector<Rect> findRectangles(Mat);
+void assignDimensions(const char*, const char*);
+void assignSource(string);
+void checkDebugMode(const char*);
+void ensureArgumentsPresence(int);
+void setLabel(Mat&, const std::string, std::vector<Point>&);
 
 int main( int argc, char *argv[] )
 {
 	ensureArgumentsPresence(argc);
+	// Read the source image given as first argument
 	assignSource(argv[1]);
+	// Init width and height given as second and third arguments
 	assignDimensions(argv[2], argv[3]);
+	// Prepare the debug mode if a fourth argument is "-d"
+	checkDebugMode(argv[4]);
 
+	// Build an image with only horizontal lines
 	Mat horizontal_image = keepLines("horizontal");
+	// Build an image with only vertical lines
 	Mat vertical_image   = keepLines("vertical");
 
-	// combine the vertical and horizontal edges
-	Mat binary_image = horizontal_image & vertical_image;
-	threshold(binary_image, binary_image, 75, 255.0, CV_THRESH_BINARY_INV);
+	// Create an image which combine both images
+	Mat binary_image = createBinaryImage(horizontal_image, vertical_image);
+
+	// Create a image for debug mode
+	debug_image = source.clone();
+
+	rectangles = findRectangles(binary_image);
 
 
-	// just for illustration
-	Mat rgb = source.clone();
+	for(size_t i = 0; i < rectangles.size(); i++)
+	{
+		Rect rect = rectangles[i];
+		Mat checkbox(source_gray, rect);
+		checkbox = checkbox > 128;
+		int total_pixels = checkbox.rows * checkbox.cols;
+		int black_pixels = total_pixels - countNonZero(checkbox);
+		if ( black_pixels > 0)
+			cout<<"The number of pixels that are zero is "<<black_pixels<<" of " << total_pixels << " for checkbox "<<i<<endl;
 
-	// find contours
+	}
+
+	// imshow("horizontal", horizontal_image);
+	// imshow("vertical", bin_v);
+	if (debug_mode)
+	{
+		namedWindow( "Contours", CV_WINDOW_AUTOSIZE );
+		imshow( "Contours", debug_image );
+	}
+
+	waitKey(0);
+	return(0);
+
+}
+
+vector<Rect> findRectangles(Mat binary_image)
+{
+	vector<Rect> boxes;
 	vector<vector<Point> > contours;
 	vector<Vec4i> hierarchy;
+
 	findContours(binary_image, contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_NONE, Point(0, 0));
-	// filter contours by area to obtain boxes
+
 	double expected_area = width * height;
-	double max_area = expected_area + expected_area * 0.1;
+	double max_area      = expected_area + expected_area * 0.1;
+	int compt            = 0;
 
 	for(int idx = 0; idx >= 0; idx = hierarchy[idx][0])
 	{
@@ -49,29 +90,37 @@ int main( int argc, char *argv[] )
 		Rect   rect = boundingRect(contours[idx]);
 		if (rect.width >= width && rect.height >= height && area <= max_area)
 		{
-			drawContours(rgb, contours, idx, Scalar(0, 0, 255), 2, 8, hierarchy);
-			string checkbox_label = intToString(rect.width) + "x" + intToString(rect.height);
-			setLabel( rgb, checkbox_label, contours[idx] );
-			// take bounding rectangle. better to use filled countour as a mask
-			// to extract the rectangle because then you won't get any stray elements
-			// cout << " rect: (" << rect.x << ", " << rect.y << ") " << rect.width << " x " << rect.height << endl;
-			Mat imRect(source, rect);
+			compt ++;
+			cout << "compt : " << compt << endl;
+			boxes.push_back(rect);
+			if (debug_mode)
+				// TODO : create this function
+				drawDebugImage(compt, contours, idx, hierarchy)
+			{
+				drawContours(debug_image, contours, idx, Scalar(0, 0, 255), 2, 8, hierarchy);
+				string checkbox_label = intToString(compt);
+				setLabel( debug_image, checkbox_label, contours[idx] );
+			}
 		}
 	}
 
+	return boxes;
+}
 
+void checkDebugMode(const char* arg)
+{
+	std::string debug_argument;
+    if(arg) debug_argument = arg;
+	if ( debug_argument == "-d")
+		debug_mode = true;
+}
 
-
-	// imshow("horizontal", horizontal_image);
-	// imshow("vertical", bin_v);
-	namedWindow( "Contours", CV_WINDOW_AUTOSIZE );
-	imshow( "Contours", rgb );
-	// imshow("bin", binary_image);
-
-
-	waitKey(0);
-	return(0);
-
+// Combined horizontal and vertical image in order to create the binary image
+Mat createBinaryImage(Mat horizontal, Mat vertical)
+{
+	Mat binary_image = horizontal & vertical;
+	threshold(binary_image, binary_image, 75, 255.0, CV_THRESH_BINARY_INV);
+	return binary_image;
 }
 
 Mat keepLines(string dimension_type)
@@ -122,7 +171,7 @@ string intToString(int number)
 
 void ensureArgumentsPresence(int arguments_count)
 {
-	if( arguments_count != 4 )
+	if( arguments_count < 4 )
 	{
 		cerr << "Missing arguments : ./detect_rectangles [path to image] [width of the rectangles] [height of the rectangles]" << endl;
 		exit( EXIT_FAILURE );
