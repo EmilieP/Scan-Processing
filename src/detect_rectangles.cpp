@@ -60,7 +60,7 @@ int main( int argc, char *argv[] )
 		compt ++;
 		Rect rect = rectangles[i];
 		Mat checkbox(source_gray, rect);
-		checkbox = checkbox > 128;
+		threshold(checkbox, checkbox, 127, 255, CV_THRESH_BINARY | CV_THRESH_OTSU);
 		int total_pixels = checkbox.rows * checkbox.cols;
 		int black_pixels = total_pixels - countNonZero(checkbox);
 		if ( black_pixels > 0 && debug_mode )
