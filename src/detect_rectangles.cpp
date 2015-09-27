@@ -20,6 +20,7 @@ vector<Rect> findRectangles(Mat);
 void assignDimensions(const char*, const char*);
 void assignSource(string);
 void checkDebugMode(const char*);
+void drawDebugImage(int, Rect, vector<vector<Point> >, int, vector<Vec4i>);
 void ensureArgumentsPresence(int);
 void setLabel(Mat&, const std::string, std::vector<Point>&);
 
@@ -46,16 +47,17 @@ int main( int argc, char *argv[] )
 
 	rectangles = findRectangles(binary_image);
 
-
+	int compt = 0;
 	for(size_t i = 0; i < rectangles.size(); i++)
 	{
+		compt ++;
 		Rect rect = rectangles[i];
 		Mat checkbox(source_gray, rect);
 		checkbox = checkbox > 128;
 		int total_pixels = checkbox.rows * checkbox.cols;
 		int black_pixels = total_pixels - countNonZero(checkbox);
 		if ( black_pixels > 0)
-			cout<<"The number of pixels that are zero is "<<black_pixels<<" of " << total_pixels << " for checkbox "<<i<<endl;
+			cout<<"The number of pixels that are zero is "<<black_pixels<<" of " << total_pixels << " for checkbox "<<compt<<endl;
 
 	}
 
@@ -78,7 +80,7 @@ vector<Rect> findRectangles(Mat binary_image)
 	vector<vector<Point> > contours;
 	vector<Vec4i> hierarchy;
 
-	findContours(binary_image, contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_NONE, Point(0, 0));
+	findContours(binary_image, contours, hierarchy, CV_RETR_CCOMP, CV_CHAIN_APPROX_NONE, Point(0, 0));
 
 	double expected_area = width * height;
 	double max_area      = expected_area + expected_area * 0.1;
@@ -88,29 +90,32 @@ vector<Rect> findRectangles(Mat binary_image)
 	{
 		double area = contourArea(contours[idx]);
 		Rect   rect = boundingRect(contours[idx]);
-		if (rect.width >= width && rect.height >= height && area <= max_area)
+
+		if (hierarchy[idx][3]<0 && rect.width >= width && rect.height >= height && area <= max_area)
 		{
 			compt ++;
-			cout << "compt : " << compt << endl;
+			rect.width = width;
+			rect.height = height;
 			boxes.push_back(rect);
-			if (debug_mode)
-				// TODO : create this function
-				drawDebugImage(compt, contours, idx, hierarchy)
-			{
-				drawContours(debug_image, contours, idx, Scalar(0, 0, 255), 2, 8, hierarchy);
-				string checkbox_label = intToString(compt);
-				setLabel( debug_image, checkbox_label, contours[idx] );
-			}
+			if (debug_mode) drawDebugImage(compt, rect, contours, idx, hierarchy);
 		}
 	}
 
 	return boxes;
 }
 
+void drawDebugImage(int compt, Rect rect, vector<vector<Point> > contours, int idx, vector<Vec4i> hierarchy)
+{
+	// drawContours(debug_image, contours, idx, Scalar(0, 0, 255), 2, 8, hierarchy);
+	rectangle(debug_image, rect.tl(), rect.br(), Scalar(0, 0, 255), 1, 8, 0);
+	string checkbox_label = intToString(compt);
+	setLabel( debug_image, checkbox_label, contours[idx] );
+}
+
 void checkDebugMode(const char* arg)
 {
-	std::string debug_argument;
-    if(arg) debug_argument = arg;
+	string debug_argument;
+	if(arg) debug_argument = arg;
 	if ( debug_argument == "-d")
 		debug_mode = true;
 }
@@ -146,7 +151,7 @@ Mat keepLines(string dimension_type)
 
 void setLabel(Mat& im, const std::string label, std::vector<Point>& contour)
 {
-	double scale  = 0.4;
+	double scale  = 0.3;
 	int baseline  = 0;
 	int fontface  = FONT_HERSHEY_SIMPLEX;
 	int thickness = 1;
