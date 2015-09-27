@@ -3,13 +3,12 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include <stdio.h>
 #include <iostream>
-#include <typeinfo>
 
 using namespace cv;
 using namespace std;
 
 Mat source, source_gray, debug_image;
-int width, height;
+int width, height, total_rectangles;
 vector<Rect> rectangles;
 bool debug_mode = false;
 
@@ -18,37 +17,45 @@ Mat keepLines(string);
 string intToString(int);
 vector<Rect> findRectangles(Mat);
 void assignDimensions(const char*, const char*);
+void assignRectanglesCount(const char*);
 void assignSource(string);
 void checkDebugMode(const char*);
 void drawDebugImage(int, Rect, vector<vector<Point> >, int, vector<Vec4i>);
 void ensureArgumentsPresence(int);
 void setLabel(Mat&, const std::string, std::vector<Point>&);
 
+// ./bin/detect_rectangles [nom de l'image] [largeur] [hauteur] [nombre de rectangles] (-d)
+// ./bin/detect_rectangles mon-image.jpg 20 30 12 -d
 int main( int argc, char *argv[] )
 {
+	// Vérifie la présence de tous les arguments
 	ensureArgumentsPresence(argc);
-	// Read the source image given as first argument
+	// Lit l'image source
 	assignSource(argv[1]);
-	// Init width and height given as second and third arguments
+	// Initialise la hauteur et largeur des rectangles
 	assignDimensions(argv[2], argv[3]);
-	// Prepare the debug mode if a fourth argument is "-d"
-	checkDebugMode(argv[4]);
+	// Initialize le nombre de rectangles à trouver
+	assignRectanglesCount(argv[4]);
+	// Active le mode debug si précisé dans les arguments
+	checkDebugMode(argv[5]);
 
-	// Build an image with only horizontal lines
+	// Créer une image contenant uniquement les lignes horizontales
 	Mat horizontal_image = keepLines("horizontal");
-	// Build an image with only vertical lines
+	// Créer une image contenant uniquement les lignes verticales
 	Mat vertical_image   = keepLines("vertical");
 
-	// Create an image which combine both images
+	// Combine les 2 images précédentes pour ne garder que les rectangles
 	Mat binary_image = createBinaryImage(horizontal_image, vertical_image);
 
-	// Create a image for debug mode
+	// Initialize l'image utilisée dans le mode debug
 	debug_image = source.clone();
 
+	// Retournes chaque rectangles trouvés
 	rectangles = findRectangles(binary_image);
 
 	int compt = 0;
-	for(size_t i = 0; i < rectangles.size(); i++)
+	int count_rectangles = rectangles.size();
+	for(size_t i = 0; i < count_rectangles; i++)
 	{
 		compt ++;
 		Rect rect = rectangles[i];
@@ -56,13 +63,21 @@ int main( int argc, char *argv[] )
 		checkbox = checkbox > 128;
 		int total_pixels = checkbox.rows * checkbox.cols;
 		int black_pixels = total_pixels - countNonZero(checkbox);
-		if ( black_pixels > 0)
-			cout<<"The number of pixels that are zero is "<<black_pixels<<" of " << total_pixels << " for checkbox "<<compt<<endl;
+		if ( black_pixels > 0 && debug_mode )
+		{
+			cout << "[" << compt << "]" << "(" << rect.tl().x << "," << rect.tl().y << ")->" << black_pixels << endl;
+		} else if ( black_pixels > 0 )
+		{
+			cout << "(" << rect.tl().x << "," << rect.tl().y << ")->" << black_pixels << endl;
+		}
 
 	}
+	if (count_rectangles != total_rectangles)
+	{
+		int missing_rectangles = total_rectangles - count_rectangles;
+		cout << "Attention : " << missing_rectangles << " rectangles n'ont pas été trouvé." << endl;
+	}
 
-	// imshow("horizontal", horizontal_image);
-	// imshow("vertical", bin_v);
 	if (debug_mode)
 	{
 		namedWindow( "Contours", CV_WINDOW_AUTOSIZE );
@@ -91,10 +106,10 @@ vector<Rect> findRectangles(Mat binary_image)
 		double area = contourArea(contours[idx]);
 		Rect   rect = boundingRect(contours[idx]);
 
-		if (hierarchy[idx][3]<0 && rect.width >= width && rect.height >= height && area <= max_area)
+		if ( hierarchy[idx][3] < 0 && rect.width >= width && rect.height >= height && area <= max_area )
 		{
 			compt ++;
-			rect.width = width;
+			rect.width  = width;
 			rect.height = height;
 			boxes.push_back(rect);
 			if (debug_mode) drawDebugImage(compt, rect, contours, idx, hierarchy);
@@ -104,9 +119,9 @@ vector<Rect> findRectangles(Mat binary_image)
 	return boxes;
 }
 
+// Draw each rectangles with its number on debug mode image
 void drawDebugImage(int compt, Rect rect, vector<vector<Point> > contours, int idx, vector<Vec4i> hierarchy)
 {
-	// drawContours(debug_image, contours, idx, Scalar(0, 0, 255), 2, 8, hierarchy);
 	rectangle(debug_image, rect.tl(), rect.br(), Scalar(0, 0, 255), 1, 8, 0);
 	string checkbox_label = intToString(compt);
 	setLabel( debug_image, checkbox_label, contours[idx] );
@@ -140,10 +155,8 @@ Mat keepLines(string dimension_type)
 		size = Size(1, height);
 	}
 
-	// morphological closing with a row filter : retain only large horizontal edges
-	Mat morphKernelH = getStructuringElement(MORPH_RECT, size);
-	morphologyEx(source_gray, morph, MORPH_CLOSE, morphKernelH);
-	// binarize: will contain only large horizontal edges
+	Mat morph_kernel = getStructuringElement(MORPH_RECT, size);
+	morphologyEx(source_gray, morph, MORPH_CLOSE, morph_kernel);
 	threshold(morph, bin, 100, 255.0, CV_THRESH_BINARY | CV_THRESH_OTSU);
 
 	return bin;
@@ -176,9 +189,9 @@ string intToString(int number)
 
 void ensureArgumentsPresence(int arguments_count)
 {
-	if( arguments_count < 4 )
+	if( arguments_count < 5 )
 	{
-		cerr << "Missing arguments : ./detect_rectangles [path to image] [width of the rectangles] [height of the rectangles]" << endl;
+		cerr << "Missing arguments : ./detect_rectangles [path to image] [width of the rectangles] [height of the rectangles] [total number of rectangles]" << endl;
 		exit( EXIT_FAILURE );
 	}
 }
@@ -198,4 +211,9 @@ void assignDimensions(const char* w, const char* h)
 {
 	sscanf(w,"%d",&width);
 	sscanf(h,"%d",&height);
+}
+
+void assignRectanglesCount(const char* number)
+{
+	sscanf(number,"%d",&total_rectangles);
 }
