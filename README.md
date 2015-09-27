@@ -27,7 +27,7 @@ Instruction de compilation :
 ```
 Ajouter `-d` en dernier argument pour activer le mode débug
 
-exemple :
+exemple avec le mode debug :
 
 ```bash
   ./bin/detect_rectangles velvet_KRYS\&VOUS_20150924.TXT_10002363.jpg 19 19 72 -d
@@ -43,3 +43,13 @@ Résultat :
 
 `43` : nombre de pixel noir
 
+exemple sans le mode debug :
+
+```bash
+  ./bin/detect_rectangles velvet_KRYS\&VOUS_20150924.TXT_10002363.jpg 19 19 72
+```
+Résultat : 
+
+```bash
+  163,627,43|125,325,12|
+```

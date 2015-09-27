@@ -54,6 +54,7 @@ int main( int argc, char *argv[] )
 	rectangles = findRectangles(binary_image);
 
 	int compt = 0;
+	stringstream return_string;
 	int count_rectangles = rectangles.size();
 	for(size_t i = 0; i < count_rectangles; i++)
 	{
@@ -68,11 +69,11 @@ int main( int argc, char *argv[] )
 			cout << "[" << compt << "]" << "(" << rect.tl().x << "," << rect.tl().y << ")->" << black_pixels << endl;
 		} else if ( black_pixels > 0 )
 		{
-			cout << "(" << rect.tl().x << "," << rect.tl().y << ")->" << black_pixels << endl;
+			return_string << rect.tl().x << "," << rect.tl().y << "," << black_pixels << "|";
 		}
 
 	}
-	if (count_rectangles != total_rectangles)
+	if (debug_mode && count_rectangles != total_rectangles)
 	{
 		int missing_rectangles = total_rectangles - count_rectangles;
 		cout << "Attention : " << missing_rectangles << " rectangles n'ont pas été trouvé." << endl;
@@ -82,6 +83,8 @@ int main( int argc, char *argv[] )
 	{
 		namedWindow( "Contours", CV_WINDOW_AUTOSIZE );
 		imshow( "Contours", debug_image );
+	} else if ( !debug_mode && count_rectangles == total_rectangles ){
+		cout << return_string.str();
 	}
 
 	waitKey(0);
@@ -100,7 +103,6 @@ vector<Rect> findRectangles(Mat binary_image)
 	double expected_area = width * height;
 	double max_area      = expected_area + expected_area * 0.1;
 	int compt            = 0;
-
 	for(int idx = 0; idx >= 0; idx = hierarchy[idx][0])
 	{
 		double area = contourArea(contours[idx]);
