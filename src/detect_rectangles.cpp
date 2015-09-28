@@ -8,36 +8,34 @@ using namespace cv;
 using namespace std;
 
 Mat source, source_gray, debug_image;
-int width, height, total_rectangles;
+int width, height, thin, total_rectangles;
 vector<Rect> rectangles;
 bool debug_mode = false;
 
 Mat createBinaryImage(Mat, Mat);
 Mat keepLines(string);
+Rect reduceRectangleSelection(Rect);
 string intToString(int);
 vector<Rect> findRectangles(Mat);
-void assignDimensions(const char*, const char*);
-void assignRectanglesCount(const char*);
+void assignArgs(char *argv[]);
 void assignSource(string);
 void checkDebugMode(const char*);
 void drawDebugImage(int, Rect, vector<vector<Point> >, int, vector<Vec4i>);
 void ensureArgumentsPresence(int);
 void setLabel(Mat&, const std::string, std::vector<Point>&);
 
-// ./bin/detect_rectangles [nom de l'image] [largeur] [hauteur] [nombre de rectangles] (-d)
-// ./bin/detect_rectangles mon-image.jpg 20 30 12 -d
+// ./bin/detect_rectangles [nom de l'image] [largeur] [hauteur] [épaisseur] [nombre de rectangles] (-d)
+// ./bin/detect_rectangles mon-image.jpg 20 30 3 12 -d
 int main( int argc, char *argv[] )
 {
 	// Vérifie la présence de tous les arguments
 	ensureArgumentsPresence(argc);
 	// Lit l'image source
 	assignSource(argv[1]);
-	// Initialise la hauteur et largeur des rectangles
-	assignDimensions(argv[2], argv[3]);
-	// Initialize le nombre de rectangles à trouver
-	assignRectanglesCount(argv[4]);
+	// Initialise la hauteur des rectangles, largeur des rectangles, épaisseur des contours des rectangles, nombre de rectangles à trouver
+	assignArgs(argv);
 	// Active le mode debug si précisé dans les arguments
-	checkDebugMode(argv[5]);
+	checkDebugMode(argv[6]);
 
 	// Créer une image contenant uniquement les lignes horizontales
 	Mat horizontal_image = keepLines("horizontal");
@@ -50,16 +48,18 @@ int main( int argc, char *argv[] )
 	// Initialize l'image utilisée dans le mode debug
 	debug_image = source.clone();
 
-	// Retournes chaque rectangles trouvés
+	// Retourne un tableau de rectangles trouvés
 	rectangles = findRectangles(binary_image);
 
-	int compt = 0;
 	stringstream return_string;
 	int count_rectangles = rectangles.size();
+	int compt            = 0;
+
 	for(size_t i = 0; i < count_rectangles; i++)
 	{
 		compt ++;
 		Rect rect = rectangles[i];
+		rect      = reduceRectangleSelection(rect);
 		Mat checkbox(source_gray, rect);
 		threshold(checkbox, checkbox, 127, 255, CV_THRESH_BINARY | CV_THRESH_OTSU);
 		int total_pixels = checkbox.rows * checkbox.cols;
@@ -71,8 +71,8 @@ int main( int argc, char *argv[] )
 		{
 			return_string << rect.tl().x << "," << rect.tl().y << "," << black_pixels << "|";
 		}
-
 	}
+
 	if (debug_mode && count_rectangles != total_rectangles)
 	{
 		int missing_rectangles = total_rectangles - count_rectangles;
@@ -90,6 +90,16 @@ int main( int argc, char *argv[] )
 	waitKey(0);
 	return(0);
 
+}
+
+Rect reduceRectangleSelection(Rect rect)
+{
+	return Rect(
+		rect.tl().x + thin,
+		rect.tl().y + thin,
+		rect.width  - thin,
+		rect.height - thin
+	);
 }
 
 vector<Rect> findRectangles(Mat binary_image)
@@ -191,7 +201,7 @@ string intToString(int number)
 
 void ensureArgumentsPresence(int arguments_count)
 {
-	if( arguments_count < 5 )
+	if( arguments_count < 6 )
 	{
 		cerr << "Missing arguments : ./detect_rectangles [path to image] [width of the rectangles] [height of the rectangles] [total number of rectangles]" << endl;
 		exit( EXIT_FAILURE );
@@ -209,13 +219,10 @@ void assignSource(string filename)
 	cvtColor( source, source_gray, CV_BGR2GRAY );
 }
 
-void assignDimensions(const char* w, const char* h)
+void assignArgs(char *argv[])
 {
-	sscanf(w,"%d",&width);
-	sscanf(h,"%d",&height);
-}
-
-void assignRectanglesCount(const char* number)
-{
-	sscanf(number,"%d",&total_rectangles);
+	sscanf(argv[2],"%d",&width);
+	sscanf(argv[3],"%d",&height);
+	sscanf(argv[4],"%d",&thin);
+	sscanf(argv[5],"%d",&total_rectangles);
 }
