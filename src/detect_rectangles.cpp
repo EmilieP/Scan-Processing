@@ -60,12 +60,25 @@ int main( int argc, char *argv[] )
 		compt ++;
 		Rect rect = rectangles[i];
 		rect      = reduceRectangleSelection(rect);
+		Mat source_check(source, rect);
+		cvtColor(source_check,source_check,CV_RGB2GRAY);
 		Mat checkbox(source_gray, rect);
-		threshold(checkbox, checkbox, 127, 255, CV_THRESH_BINARY | CV_THRESH_OTSU);
+		// checkbox = 255 - checkbox;
+		threshold(checkbox, checkbox, 180, 255, CV_THRESH_BINARY);
 		int total_pixels = checkbox.rows * checkbox.cols;
 		int black_pixels = total_pixels - countNonZero(checkbox);
 		if ( black_pixels > 0 && debug_mode )
 		{
+			if (compt == 16)
+			{
+				string s= "source " + intToString(compt);
+				imshow(s, source_check);
+				imwrite("1.png", source_check);
+				string s2= "bw " + intToString(compt);
+				imshow(s2, checkbox);
+				imwrite("2.png", checkbox);
+
+			}
 			cout << "[" << compt << "]" << "(" << rect.tl().x << "," << rect.tl().y << ")->" << black_pixels << endl;
 		} else if ( black_pixels > 0 )
 		{
@@ -111,7 +124,7 @@ vector<Rect> findRectangles(Mat binary_image)
 	findContours(binary_image, contours, hierarchy, CV_RETR_CCOMP, CV_CHAIN_APPROX_NONE, Point(0, 0));
 
 	double expected_area = width * height;
-	double max_area      = expected_area + expected_area * 0.1;
+	double max_area      = expected_area + expected_area * 0.2;
 	int compt            = 0;
 	for(int idx = 0; idx >= 0; idx = hierarchy[idx][0])
 	{
@@ -169,7 +182,8 @@ Mat keepLines(string dimension_type)
 
 	Mat morph_kernel = getStructuringElement(MORPH_RECT, size);
 	morphologyEx(source_gray, morph, MORPH_CLOSE, morph_kernel);
-	threshold(morph, bin, 100, 255.0, CV_THRESH_BINARY | CV_THRESH_OTSU);
+	threshold(morph, bin, 200, 255, CV_THRESH_BINARY);
+	// threshold(morph, bin, 100, 255.0, CV_THRESH_BINARY | CV_THRESH_OTSU);
 
 	return bin;
 }

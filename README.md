@@ -23,16 +23,16 @@ Instruction de compilation :
 ```bash
   cmake .
   make detect_rectangles
-  ./bin/detect_rectangles [chemin de l'image] [largeur du rectangle] [hauteur du rectangle] [nombre de rectangles à trouver]
+  ./bin/detect_rectangles [chemin de l'image] [largeur du rectangle] [hauteur du rectangle] [épaisseur] [nombre de rectangles à trouver]
 ```
 Ajouter `-d` en dernier argument pour activer le mode débug
 
 exemple avec le mode debug :
 
 ```bash
-  ./bin/detect_rectangles velvet_KRYS\&VOUS_20150924.TXT_10002363.jpg 19 19 72 -d
+  ./bin/detect_rectangles velvet_KRYS\&VOUS_20150924.TXT_10002365.jpg 17 17 2 72 -d
 ```
-Résultat : 
+Résultat :
 
 ```bash
   (163,627)->43
@@ -46,9 +46,9 @@ Résultat :
 exemple sans le mode debug :
 
 ```bash
-  ./bin/detect_rectangles velvet_KRYS\&VOUS_20150924.TXT_10002363.jpg 19 19 72
+  ./bin/detect_rectangles velvet_KRYS\&VOUS_20150924.TXT_10002365.jpg 17 17  2 72
 ```
-Résultat : 
+Résultat :
 
 ```bash
   163,627,43|125,325,12|
