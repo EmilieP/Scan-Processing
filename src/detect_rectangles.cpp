@@ -8,7 +8,7 @@ using namespace cv;
 using namespace std;
 
 Mat source, source_gray, debug_image;
-int width, height, thin, total_rectangles;
+int width=1, height=1, thin=0, total_rectangles=1, thresh=200;
 vector<Rect> rectangles;
 bool debug_mode = false;
 
@@ -17,25 +17,23 @@ Mat keepLines(string);
 Rect reduceRectangleSelection(Rect);
 string intToString(int);
 vector<Rect> findRectangles(Mat);
-void assignArgs(char *argv[]);
+void assignArgs(char*);
 void assignSource(string);
-void checkDebugMode(const char*);
 void drawDebugImage(int, Rect, vector<vector<Point> >, int, vector<Vec4i>);
-void ensureArgumentsPresence(int);
 void setLabel(Mat&, const std::string, std::vector<Point>&);
+void split(const string&, char, vector<string>&);
 
-// ./bin/detect_rectangles [nom de l'image] [largeur] [hauteur] [épaisseur] [nombre de rectangles] (-d)
-// ./bin/detect_rectangles mon-image.jpg 20 30 3 12 -d
+// ./bin/detect_rectangles [nom de l'image] w=[largeur] h=[hauteur] s=[épaisseur] nb=[nombre de rectangles] t=[threshold]
+// ./bin/detect_rectangles mon-image.jpg w=20 h=30 s=3 nb=12 debug=true
 int main( int argc, char *argv[] )
 {
-	// Vérifie la présence de tous les arguments
-	ensureArgumentsPresence(argc);
 	// Lit l'image source
 	assignSource(argv[1]);
 	// Initialise la hauteur des rectangles, largeur des rectangles, épaisseur des contours des rectangles, nombre de rectangles à trouver
-	assignArgs(argv);
-	// Active le mode debug si précisé dans les arguments
-	checkDebugMode(argv[6]);
+	for(int i = 2; i < argc; i++)
+	{
+		assignArgs(argv[i]);
+	}
 
 	// Créer une image contenant uniquement les lignes horizontales
 	Mat horizontal_image = keepLines("horizontal");
@@ -63,22 +61,12 @@ int main( int argc, char *argv[] )
 		Mat source_check(source, rect);
 		cvtColor(source_check,source_check,CV_RGB2GRAY);
 		Mat checkbox(source_gray, rect);
-		// checkbox = 255 - checkbox;
 		threshold(checkbox, checkbox, 180, 255, CV_THRESH_BINARY);
 		int total_pixels = checkbox.rows * checkbox.cols;
 		int black_pixels = total_pixels - countNonZero(checkbox);
+
 		if ( black_pixels > 0 && debug_mode )
 		{
-			if (compt == 16)
-			{
-				string s= "source " + intToString(compt);
-				imshow(s, source_check);
-				imwrite("1.png", source_check);
-				string s2= "bw " + intToString(compt);
-				imshow(s2, checkbox);
-				imwrite("2.png", checkbox);
-
-			}
 			cout << "[" << compt << "]" << "(" << rect.tl().x << "," << rect.tl().y << ")->" << black_pixels << endl;
 		} else if ( black_pixels > 0 )
 		{
@@ -86,7 +74,7 @@ int main( int argc, char *argv[] )
 		}
 	}
 
-	if (debug_mode && count_rectangles != total_rectangles)
+	if (debug_mode && count_rectangles > total_rectangles)
 	{
 		int missing_rectangles = total_rectangles - count_rectangles;
 		cout << "Attention : " << missing_rectangles << " rectangles n'ont pas été trouvé." << endl;
@@ -96,7 +84,7 @@ int main( int argc, char *argv[] )
 	{
 		namedWindow( "Contours", CV_WINDOW_AUTOSIZE );
 		imshow( "Contours", debug_image );
-	} else if ( !debug_mode && count_rectangles == total_rectangles ){
+	} else if ( !debug_mode && count_rectangles >= total_rectangles ){
 		cout << return_string.str();
 	}
 
@@ -182,7 +170,7 @@ Mat keepLines(string dimension_type)
 
 	Mat morph_kernel = getStructuringElement(MORPH_RECT, size);
 	morphologyEx(source_gray, morph, MORPH_CLOSE, morph_kernel);
-	threshold(morph, bin, 200, 255, CV_THRESH_BINARY);
+	threshold(morph, bin, thresh, 255, CV_THRESH_BINARY);
 	// threshold(morph, bin, 100, 255.0, CV_THRESH_BINARY | CV_THRESH_OTSU);
 
 	return bin;
@@ -213,15 +201,6 @@ string intToString(int number)
 	return result;
 }
 
-void ensureArgumentsPresence(int arguments_count)
-{
-	if( arguments_count < 6 )
-	{
-		cerr << "Missing arguments : ./detect_rectangles [path to image] [width of the rectangles] [height of the rectangles] [total number of rectangles]" << endl;
-		exit( EXIT_FAILURE );
-	}
-}
-
 void assignSource(string filename)
 {
 	source = imread( filename );
@@ -233,10 +212,37 @@ void assignSource(string filename)
 	cvtColor( source, source_gray, CV_BGR2GRAY );
 }
 
-void assignArgs(char *argv[])
+void assignArgs(char *argv)
 {
-	sscanf(argv[2],"%d",&width);
-	sscanf(argv[3],"%d",&height);
-	sscanf(argv[4],"%d",&thin);
-	sscanf(argv[5],"%d",&total_rectangles);
+	vector<string> v;
+	split(argv, '=', v);
+
+	if ( v[0] == "w") {
+		sscanf(v[1].c_str(),"%d",&width);
+	} else if ( v[0] == "h") {
+		sscanf(v[1].c_str(),"%d",&height);
+	} else if ( v[0] == "s") {
+		sscanf(v[1].c_str(),"%d",&thin);
+	} else if ( v[0] == "nb") {
+		sscanf(v[1].c_str(),"%d",&total_rectangles);
+	} else if ( v[0] == "t") {
+		sscanf(v[1].c_str(),"%d",&thresh);
+	} else if ( v[0] == "debug" ) {
+		if ( v[1] == "true" )
+			debug_mode = true;
+	}
+}
+
+void split(const string& s, char c, vector<string>& v) {
+	 string::size_type i = 0;
+	 string::size_type j = s.find(c);
+
+	 while (j != string::npos) {
+			v.push_back(s.substr(i, j-i));
+			i = ++j;
+			j = s.find(c, j);
+
+			if (j == string::npos)
+				 v.push_back(s.substr(i, s.length()));
+	 }
 }
