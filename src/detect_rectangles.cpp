@@ -3,18 +3,21 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include <stdio.h>
 #include <iostream>
+// #include <string>
 
 using namespace cv;
 using namespace std;
 
 Mat source, source_gray, debug_image;
-int width=1, height=1, thin=0, total_rectangles=1, thresh=200;
+int width=1, height=1, thin=0, total_rectangles=0, thresh=200;
+Rect zone(0,0,0,0);
 vector<Rect> rectangles;
-bool debug_mode = false;
+bool debug_mode = false, count_black=false;
 
 Mat createBinaryImage(Mat, Mat);
 Mat keepLines(string);
 Rect reduceRectangleSelection(Rect);
+Rect buildZone(const char*);
 string intToString(int);
 vector<Rect> findRectangles(Mat);
 void assignArgs(char*);
@@ -27,13 +30,15 @@ void split(const string&, char, vector<string>&);
 // ./bin/detect_rectangles mon-image.jpg w=20 h=30 s=3 nb=12 debug=true
 int main( int argc, char *argv[] )
 {
-	// Lit l'image source
-	assignSource(argv[1]);
-	// Initialise la hauteur des rectangles, largeur des rectangles, épaisseur des contours des rectangles, nombre de rectangles à trouver
+
+	// Initialise les parametres
 	for(int i = 2; i < argc; i++)
 	{
 		assignArgs(argv[i]);
 	}
+
+	// Lit l'image source
+	assignSource(argv[1]);
 
 	// Créer une image contenant uniquement les lignes horizontales
 	Mat horizontal_image = keepLines("horizontal");
@@ -46,7 +51,7 @@ int main( int argc, char *argv[] )
 	// Initialize l'image utilisée dans le mode debug
 	debug_image = source.clone();
 
-	// Retourne un tableau de rectangles trouvés
+	// Retourne un tableau des rectangles trouvés
 	rectangles = findRectangles(binary_image);
 
 	stringstream return_string;
@@ -65,27 +70,45 @@ int main( int argc, char *argv[] )
 		int total_pixels = checkbox.rows * checkbox.cols;
 		int black_pixels = total_pixels - countNonZero(checkbox);
 
-		if ( black_pixels > 0 && debug_mode )
+		if ( count_black )
 		{
-			cout << "[" << compt << "]" << "(" << rect.tl().x << "," << rect.tl().y << ")->" << black_pixels << endl;
-		} else if ( black_pixels > 0 )
-		{
-			return_string << rect.tl().x << "," << rect.tl().y << "," << black_pixels << "|";
+			if ( black_pixels > 0 && debug_mode )
+			{
+				cout << "[" << compt << "]" << "(" << rect.tl().x << "," << rect.tl().y << ")->" << black_pixels << endl;
+			} else if ( black_pixels > 0 )
+			{
+				return_string << rect.tl().x << "," << rect.tl().y << "," << black_pixels << "|";
+			}
+		} else {
+			if ( debug_mode )
+			{
+				cout << "[" << compt << "]" << "(" << rect.tl().x << "," << rect.tl().y << ")" << endl;
+			} else
+			{
+				return_string << rect.tl().x << "," << rect.tl().y << "|";
+			}
 		}
-	}
-
-	if (debug_mode && count_rectangles > total_rectangles)
-	{
-		int missing_rectangles = total_rectangles - count_rectangles;
-		cout << "Attention : " << missing_rectangles << " rectangles n'ont pas été trouvé." << endl;
 	}
 
 	if (debug_mode)
 	{
-		namedWindow( "Contours", CV_WINDOW_AUTOSIZE );
+		if ( total_rectangles > 0 && count_rectangles !=  total_rectangles )
+		{
+			int missing_rectangles = total_rectangles - count_rectangles;
+			cout << "Attention : " << missing_rectangles << " rectangles n'ont pas été trouvé." << endl;
+		}
+		namedWindow( "Contours", CV_WINDOW_NORMAL );
 		imshow( "Contours", debug_image );
-	} else if ( !debug_mode && count_rectangles >= total_rectangles ){
-		cout << return_string.str();
+	} else
+	{
+		if ( total_rectangles == 0 )
+		{
+			cout << return_string.str() << endl;
+		}
+		else if ( total_rectangles > 0 && count_rectangles == total_rectangles )
+		{
+			cout << return_string.str();
+		}
 	}
 
 	waitKey(0);
@@ -209,6 +232,10 @@ void assignSource(string filename)
 		cerr << "Problem loading image !" << endl;
 		exit( EXIT_FAILURE );
 	}
+
+	if ( zone.width != 0 && zone.height != 0 )
+		source = source(zone);
+
 	cvtColor( source, source_gray, CV_BGR2GRAY );
 }
 
@@ -217,23 +244,58 @@ void assignArgs(char *argv)
 	vector<string> v;
 	split(argv, '=', v);
 
-	if ( v[0] == "w") {
-		sscanf(v[1].c_str(),"%d",&width);
-	} else if ( v[0] == "h") {
-		sscanf(v[1].c_str(),"%d",&height);
-	} else if ( v[0] == "s") {
-		sscanf(v[1].c_str(),"%d",&thin);
-	} else if ( v[0] == "nb") {
-		sscanf(v[1].c_str(),"%d",&total_rectangles);
-	} else if ( v[0] == "t") {
-		sscanf(v[1].c_str(),"%d",&thresh);
-	} else if ( v[0] == "debug" ) {
+	if ( v[0] == "w" )
+	{
+		sscanf( v[1].c_str(), "%d", &width );
+	}
+	else if ( v[0] == "h" )
+	{
+		sscanf( v[1].c_str(), "%d", &height );
+	}
+	else if ( v[0] == "s" )
+	{
+		sscanf( v[1].c_str(), "%d", &thin );
+	}
+	else if ( v[0] == "nb" )
+	{
+		sscanf( v[1].c_str(), "%d", &total_rectangles );
+	}
+	else if ( v[0] == "t" )
+	{
+		sscanf( v[1].c_str(), "%d", &thresh );
+	}
+	else if ( v[0] == "z" )
+	{
+		zone = buildZone( v[1].c_str() );
+	}
+	else if ( v[0] == "black" )
+	{
+		if ( v[1] == "true" )
+			count_black = true;
+	}
+	else if ( v[0] == "debug" )
+	{
 		if ( v[1] == "true" )
 			debug_mode = true;
 	}
 }
 
-void split(const string& s, char c, vector<string>& v) {
+Rect buildZone(const char* argv)
+{
+	vector<string> v;
+	int x = 0, y = 0, w = 0, h = 0;
+	split(argv, ',', v);
+	sscanf( v[0].c_str(), "%d", &x );
+	sscanf( v[1].c_str(), "%d", &y );
+	sscanf( v[2].c_str(), "%d", &w );
+	sscanf( v[3].c_str(), "%d", &h );
+
+	Rect rect(x, y, w, h);
+	return rect;
+}
+
+void split(const string& s, char c, vector<string>& v)
+{
 	 string::size_type i = 0;
 	 string::size_type j = s.find(c);
 
