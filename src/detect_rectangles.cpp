@@ -49,7 +49,8 @@ int main( int argc, char *argv[] )
 	Mat binary_image = createBinaryImage(horizontal_image, vertical_image);
 
 	// Initialize l'image utilisée dans le mode debug
-	debug_image = source.clone();
+	if ( debug_mode )
+		debug_image = source.clone();
 
 	// Retourne un tableau des rectangles trouvés
 	rectangles = findRectangles(binary_image);
