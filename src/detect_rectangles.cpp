@@ -265,7 +265,7 @@ void assignArgs(char *argv)
 	{
 		sscanf( v[1].c_str(), "%d", &thresh );
 	}
-	else if ( v[0] == "z" )
+	else if ( v[0] == "z" || v[0] == "zone" )
 	{
 		zone = buildZone( v[1].c_str() );
 	}
