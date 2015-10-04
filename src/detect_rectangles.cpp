@@ -73,8 +73,6 @@ int main( int argc, char *argv[] )
 		int absolute_x = zone.tl().x + rect.tl().x;
 		int absolute_y = zone.tl().y + rect.tl().y;
 		Point absolute(absolute_x, absolute_y);
-		cout << rect.tl() << endl;
-		cout << absolute << endl;
 
 		if ( count_black )
 		{
