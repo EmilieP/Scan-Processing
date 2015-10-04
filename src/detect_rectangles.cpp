@@ -70,23 +70,28 @@ int main( int argc, char *argv[] )
 		threshold(checkbox, checkbox, 180, 255, CV_THRESH_BINARY);
 		int total_pixels = checkbox.rows * checkbox.cols;
 		int black_pixels = total_pixels - countNonZero(checkbox);
+		int absolute_x = zone.tl().x + rect.tl().x;
+		int absolute_y = zone.tl().y + rect.tl().y;
+		Point absolute(absolute_x, absolute_y);
+		cout << rect.tl() << endl;
+		cout << absolute << endl;
 
 		if ( count_black )
 		{
 			if ( black_pixels > 0 && debug_mode )
 			{
-				cout << "[" << compt << "]" << "(" << rect.tl().x << "," << rect.tl().y << ")->" << black_pixels << endl;
+				cout << "[" << compt << "]" << "(" << absolute.x << "," << absolute.y << ")->" << black_pixels << endl;
 			} else if ( black_pixels > 0 )
 			{
-				return_string << rect.tl().x << "," << rect.tl().y << "," << black_pixels << "|";
+				return_string << absolute.x << "," << absolute.y << "," << black_pixels << "|";
 			}
 		} else {
 			if ( debug_mode )
 			{
-				cout << "[" << compt << "]" << "(" << rect.tl().x << "," << rect.tl().y << ")" << endl;
+				cout << "[" << compt << "]" << "(" << absolute.x << "," << absolute.y << ")" << endl;
 			} else
 			{
-				return_string << rect.tl().x << "," << rect.tl().y << "|";
+				return_string << absolute.x << "," << absolute.y << "|";
 			}
 		}
 	}
@@ -234,9 +239,9 @@ void assignSource(string filename)
 		exit( EXIT_FAILURE );
 	}
 
-	if ( zone.width != 0 && zone.height != 0 )
+	if ( zone.width != 0 && zone.height != 0 ) {
 		source = source(zone);
-
+	}
 	cvtColor( source, source_gray, CV_BGR2GRAY );
 }
 
