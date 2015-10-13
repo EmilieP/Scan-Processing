@@ -76,10 +76,10 @@ int main( int argc, char *argv[] )
 
 		if ( count_black )
 		{
-			if ( black_pixels > 0 && debug_mode )
+			if ( debug_mode )
 			{
 				cout << "[" << compt << "]" << "(" << absolute.x << "," << absolute.y << ")->" << black_pixels << endl;
-			} else if ( black_pixels > 0 )
+			} else
 			{
 				return_string << absolute.x << "," << absolute.y << "," << black_pixels << "|";
 			}
