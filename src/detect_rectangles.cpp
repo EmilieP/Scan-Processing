@@ -12,6 +12,7 @@ Mat source, source_gray, debug_image;
 int width=1, height=1, thin=0, total_rectangles=0, thresh=200;
 Rect zone(0,0,0,0);
 vector<Rect> rectangles;
+
 bool debug_mode = false, count_black=false;
 
 Mat createBinaryImage(Mat, Mat);
@@ -28,6 +29,8 @@ void split(const string&, char, vector<string>&);
 
 // ./bin/detect_rectangles [nom de l'image] w=[largeur] h=[hauteur] s=[épaisseur] nb=[nombre de rectangles] t=[threshold]
 // ./bin/detect_rectangles mon-image.jpg w=20 h=30 s=3 nb=12 debug=true
+// make detect_rectangles
+// ./bin/detect_rectangles 20003239.jpg w=30 h=30 zone=60,2655,300,300 s=5 t=195 nb=32 debug=true
 int main( int argc, char *argv[] )
 {
 
@@ -47,7 +50,7 @@ int main( int argc, char *argv[] )
 
 	// Combine les 2 images précédentes pour ne garder que les rectangles
 	Mat binary_image = createBinaryImage(horizontal_image, vertical_image);
-
+  imshow( "bin", binary_image );
 	// Initialize l'image utilisée dans le mode debug
 	if ( debug_mode )
 		debug_image = source.clone();
@@ -59,7 +62,7 @@ int main( int argc, char *argv[] )
 	int count_rectangles = rectangles.size();
 	int compt            = 0;
 
-	for(size_t i = 0; i < count_rectangles; i++)
+	for(int i = 0; i < count_rectangles; i++)
 	{
 		compt ++;
 		Rect rect = rectangles[i];
